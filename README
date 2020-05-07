@@ -1,0 +1,55 @@
+
+Kerberos password authentication issues
+---------------------------------------
+
+Kerberized programs that perform password authentication may be
+vulnerable to an attacker with the ability to spoof KDC responses
+(either as a race condition on the LAN, or via DNS cache poisoning,
+spoofed ICMP redirects or router advertisments, etc.).
+
+This is an old, well-known issue among Kerberos developers, but with
+more application developers adding Kerberos password authentication to
+their software (esp. with the advent of such support in Windows 2000),
+some review may be necessary.
+
+Standard (undocumented) procedure for Kerberos password authentication
+involves the acquisition of a Kerberos ticket-granting ticket (TGT)
+using the user's password, verification of the TGT via acquisition of
+a service ticket for the host itself, and verification of the service
+ticket using the host's key (known only to the host and the real KDC).
+
+However, many programs still allow login in certain exceptional cases,
+as described in the BSD klogin.c:
+
+         /*
+          * If we got a TGT, get a local "rcmd" ticket and check it so
+	  * as to ensure that we are not talking to a bogus Kerberos server.
+          *
+          * There are 2 cases where we still allow a login:
+          *      1: the VERIFY_SERVICE doesn't exist in the KDC
+          *      2: local host has no srvtab, as (hopefully) indicated by a
+          *         return value of RD_AP_UNDEC from krb_rd_req().
+          */
+
+Such cases are commonplace in large Kerberos realms with poorly
+centralized administrative control, where participating hosts don't
+always get keys, much less keytabs installed containing them.
+
+The correct, arguably draconian behaviour is to simply disallow login
+for these cases instead (as OpenBSD does). Programs without access to
+the host's keytab, however, will always be vulnerable to such an
+attack, as they have no way to verify the validity of a KDC reply.
+
+Microsoft Kerberos v5 domain login in Windows 2000 is not vulnerable
+to this attack, as it requires the recovery of authorization data in
+the decrypted service ticket acquired with the TGT.
+
+Demonstration code to perform Kerberos v4, v5, and AFS KDC AS spoofing:
+
+	http://www.monkey.org/~dugsong/kdcspoof.tar.gz
+
+-d.
+
+---
+http://www.monkey.org/~dugsong/
+
